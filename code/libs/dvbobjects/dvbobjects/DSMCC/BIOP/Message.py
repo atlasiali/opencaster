@@ -19,6 +19,7 @@
 
 import os
 import string
+import struct
 from dvbobjects.utils import *
 from dvbobjects.MHP.Descriptors import content_type_descriptor
 
@@ -35,10 +36,28 @@ class Message(DVBobject):
     serviceContextList = ""             # MHP
 
     def pack(self):
-
+        
+        print ("Pack:",self)
         # sanity check
         assert self.byte_order == 0x00  # DVB
         assert len(self.objectKind) == 0x04, repr(self.objectKind)  # DVB
+        print ("HHHHELLLLLO",self)
+        print (type(self.objectKind), type(self.objectInfo), type(self.serviceContextList))
+        print (self.objectKind, self.objectInfo, self.serviceContextList)
+
+        if isinstance(self.objectKind, str):
+             self.objectKind = self.objectKind.encode('utf-8')
+
+        if isinstance(self.objectInfo, str):
+             self.objectInfo = self.objectInfo.encode('utf-8')
+
+        if isinstance(self.serviceContextList, str):
+             self.serviceContextList = self.serviceContextList.encode('utf-8')
+
+        if isinstance(self.magic, str):
+             self.magic = self.magic.encode('utf-8')
+
+        print (type(self.objectKind), type(self.objectInfo), type(self.serviceContextList))
 
         MessageSubHeader_FMT = (
             "!"
@@ -55,7 +74,7 @@ class Message(DVBobject):
             len(self.objectInfo),
             len(self.serviceContextList),
         )
-
+        print ("BELLLLLLO")
         MessageSubHeader = pack(
             MessageSubHeader_FMT,
             4,
@@ -67,15 +86,19 @@ class Message(DVBobject):
             len(self.serviceContextList),
             self.serviceContextList,
         )
+        print ("Before messageBody")
 
         messageBody = self.messageBody()
-
+        print ("pack messageBody:", messageBody)
         message_size = (
             len(MessageSubHeader)
             + 4                         # messageBody_length field
             + len(messageBody)
         )
+        print ("pack messageSizeMMM:", message_size)
 
+        print (type(self.magic), type(self.biop_version_major), type(self.biop_version_minor))
+        print ("Chelllloooo")
         MessageHeader = pack(
             "!"
             "4s"                        # magic
@@ -93,6 +116,7 @@ class Message(DVBobject):
             message_size,               # computed
         )
 
+        print ("Message Header")
         FMT = ("!"
                "%ds"                    # MessageHeader
                "%ds"                    # MessageSubHeader
@@ -104,6 +128,7 @@ class Message(DVBobject):
             len(messageBody)
         )
 
+        print ("Returning pack")
         return pack(
             FMT,                        # see above
             MessageHeader,
@@ -117,10 +142,10 @@ class Message(DVBobject):
 
 class FileMessage(Message):
 
-    objectKind = CDR("fil")             # DVB
+    objectKind = CDR("fil").encode('utf-8')             # DVB
 
     def __init__(self, **kwargs):
-
+        print ("Hello from FileMessage")
         # Initialize SuperClass
         Message.__init__(*(self,), **kwargs)
 
@@ -129,12 +154,14 @@ class FileMessage(Message):
             objectInfo=pack("!LL", 0, self.contentSize),
         )
 
+        print ("Filemessage self:",self)
         # Maybe we're playing MHP...
         try:
             content_type = self.content_type
         except AttributeError:
             content_type = None         # i.e: UNKNOWN
 
+        print ("Filemessage contenttype:",content_type)
         # if we know a content_type, add descriptor...
         if content_type:
             ctd = content_type_descriptor(content_type=content_type)
@@ -142,7 +169,12 @@ class FileMessage(Message):
 
     def messageBody(self):
         # Retrieve the file message body (i.e. file content)
-        content = open(self.PATH).read()
+        print ("Retrieve the file message body")
+ 
+        with open(self.PATH, 'rb') as file:
+            content = file.read()
+
+        print ("file readed rb", content) 
         content_length = len(content)
         assert content_length == self.contentSize, self.PATH
 
@@ -156,11 +188,11 @@ class FileMessage(Message):
 
 class StreamEventMessage(Message):
 
-    objectKind = CDR("ste")             # DVB
+    objectKind = CDR("ste").encode('utf-8')             # DVB
     objectInfo = ""
 
     def __init__(self, **kwargs):
-
+        print ("Stream Event")
         # Initialize SuperClass
         Message.__init__(*(self,), **kwargs)
 
@@ -170,7 +202,7 @@ class StreamEventMessage(Message):
         self.objectInfo = info_t + event_names
 
     def messageBody(self):
-
+        print ("Stream messagebody")
         # stream event do it now: BIOP.program_use_tap (id undefined) + eventIds
         taps = open(self.PATH + "/.tap").read()
         event_ids = open(self.PATH + "/.eid").read()
@@ -180,55 +212,54 @@ class StreamEventMessage(Message):
 ######################################################################
 class DirectoryMessage(Message):
 
-    objectKind = CDR("dir")             # DVB
-    objectInfo = ""                     # MHP
+    objectKind = CDR("dir").encode('utf-8')             # DVB
+    objectInfo = b""                     # MHP
 
     def __init__(self, **kwargs):
 
         # Initialize SuperClass
-        Message.__init__(*(self,), **kwargs)
-
+        super().__init__(**kwargs)
         self.bindings_count = len(self.bindings)
 
         assert self.bindings_count < 512  # MHP
 
+
     def messageBody(self):
-        separator = ""                  # for debugging
-        bindings = "%s%s%s" % (
-            separator,
-            b"".join([binding.pack() for binding in self.bindings],
-                     separator),
-            separator)
+        print ("Directory Message",self)
 
-        FMT = (
-            "!"
-            "H"                         # bindings_count
-            "%ds"                       # bindings
-        ) % (len(bindings))
+        bindings_bytes = b"".join(binding.pack() for binding in self.bindings)
 
+
+        print ("LALALALLLL")
+        FMT = "!H%ds" % len(bindings_bytes)
+
+        print (type(FMT),type(len(self.bindings)),type(bindings_bytes))
         messageBody = pack(
             FMT,
             len(self.bindings),
-            bindings,
+            bindings_bytes,
         )
 
+        print ("Dir msg:", messageBody)
         return messageBody
 
 ######################################################################
 
 
 class ServiceGatewayMessage(DirectoryMessage):
-
-    objectKind = CDR("srg")             # DVB
+    print ("ServiceGatewayMessage")
+    objectKind = CDR("srg").encode('utf-8')             # DVB
 
 ######################################################################
 
 
 class ServiceGatewayInfo(DVBobject):
 
-    userInfo = ""                       # MHP
+    print ("ServiceGatewayInfo", DVBobject)
+    userInfo = b""                       # MHP
 
     def pack(self):
+        print ("ServiceGatewayInfo PPACK:",self)
         FMT = ("!"
                "%ds"                    # IOP::IOR
                "B"                      # downloadTaps_count

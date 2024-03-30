@@ -1,0 +1,2 @@
+sudo ./setup.py build
+sudo ./setup.py install

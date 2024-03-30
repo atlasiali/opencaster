@@ -203,6 +203,7 @@ class data_broadcast_id_descriptor(Descriptor):
             oui_data_length = len(oui_data_bytes)
 
             FMT = "!HB%ds%ds" % (oui_data_length, len(self.private_data_bytes))
+            print ("DVB data broadcastid:", self, FMT)
             return pack(FMT,
                         self.data_broadcast_ID,
                         oui_data_length,
@@ -212,9 +213,10 @@ class data_broadcast_id_descriptor(Descriptor):
 
         else:
             FMT = "!H%ds" % len(self.ID_selector_bytes)
+            print ("DVB data broadcastid:", self, FMT)
             return pack(FMT,
                         self.data_broadcast_ID,
-                        self.ID_selector_bytes,
+                        self.ID_selector_bytes.encode('utf-8'),
                         )
 
 ######################################################################
@@ -297,7 +299,7 @@ class network_descriptor(Descriptor):
 
     def bytes(self):
         fmt = "!%ds" % len(self.network_name)
-        return pack(fmt, self.network_name)
+        return pack(fmt, self.network_name.encode('utf-8'))
 
 ######################################################################
 
@@ -312,9 +314,9 @@ class service_descriptor(Descriptor):
         return pack(fmt,
                     self.service_type,
                     len(self.service_provider_name),
-                    self.service_provider_name,
+                    self.service_provider_name.encode('utf-8'),
                     len(self.service_name),
-                    self.service_name,
+                    self.service_name.encode('utf-8'),
                     )
 
 

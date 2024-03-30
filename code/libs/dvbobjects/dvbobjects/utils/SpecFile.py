@@ -28,38 +28,44 @@ class SuperGroupSpec(DVBobject):
 
     def read(self, filename):
         self.PATH = filename
-        file = open(filename)
+        with open(filename, 'r') as file:
+            items = file.readline().strip().split()
 
-        items = string.split(file.readline())
-        self.transactionId = eval(items[0])
-        self.version = eval(items[1])
-        fn = items[1]
-        if fn == "None":
-            self.srg_ior = None
-        else:
-            self.srg_ior = open(items[2]).read()
+            print ("SuperGroupSpec items:", items)
+            self.transactionId = eval(items[0])
+            self.version = eval(items[1])
+            fn = items[1]
+            if fn == "None":
+                self.srg_ior = None
+            else:
+                with open(items[2], 'rb') as srg_file:
+                    self.srg_ior = srg_file.read()
 
-        self.groups = []
 
-        while (1):
-            line = file.readline()
-            if not line:
-                break
+            self.groups = []
 
-            group = GroupSpec()
-            # print repr(line)
-            group.read(line)
-            self.groups.append(group)
+            print ("FFFFILE:", file)
+            while (1):
+                line = file.readline()
+                if not line:
+                    break
+
+                group = GroupSpec()
+                # print repr(line)
+                group.read(line)
+                self.groups.append(group)
 
     def write(self, outputDir):
+        print ("specFile write:", self, outputDir)
         specFile = "%s/DSI.spec" % outputDir
         dsi = open(specFile, "wb")
-        dsi.write("0x%08X 0x%08X %s\n" % (
-                  int(self.transactionId),
-                  self.version,
-                  self.srg_ior,
-                  ))
+        print ("DSI Print:" , dsi)
+
+        initial_line = f"0x{self.transactionId.version:08X} 0x{self.version:08X} {self.srg_ior}\n"
+        dsi.write(initial_line.encode('utf-8'))
+
         for group in self.groups:
+            print ("Group write:" ,dsi, outputDir)
             group.write(dsi, outputDir)
 
     def addGroup(self, **kwargs):
@@ -79,7 +85,7 @@ class SuperGroupSpec(DVBobject):
 class GroupSpec(DVBobject):
 
     def read(self, specline):
-        items = string.split(specline)
+        items = specline.split()
 
         self.PATH = items[0]
         # print repr(items[0])
@@ -106,15 +112,26 @@ class GroupSpec(DVBobject):
             self.modules.append(mod)
 
     def write(self, specFile, outputDir):
-        specFile.write(
-            "%s 0x%08X 0x%08X 0x%08X 0x%04X %4d\n" % (
+        print(self.transactionId)
+
+        print ("specFile write:" , "%s 0x%08X 0x%08X 0x%08X 0x%04X %4d\n" % (
                 "%s/DII.spec" % outputDir,
-                int(self.transactionId),
+                int(self.transactionId.identification),
                 self.version,
                 self.downloadId,
                 self.assocTag,
                 self.blockSize,
             ))
+ 
+        specFile.write(
+            ("%s 0x%08X 0x%08X 0x%08X 0x%04X %4d\n" % (
+                "%s/DII.spec" % outputDir,
+                int(self.transactionId.identification),
+                self.version,
+                self.downloadId,
+                self.assocTag,
+                self.blockSize,
+            )).encode('utf-8'))
 
     def addModule(self, **kwargs):
         mod = ModuleSpec(*(), **kwargs)
@@ -129,7 +146,7 @@ class GroupSpec(DVBobject):
 class ModuleSpec(DVBobject):
 
     def read(self, specline):
-        items = string.split(specline)
+        items = specline.split()
         # print repr(items[0])
         # print repr(items[1])
         self.INPUT = items[0]

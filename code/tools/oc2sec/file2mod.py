@@ -37,7 +37,7 @@ TIMEOUT			= 0xFFFFFFFF
 TABLE_ID		= 0x3C
 MAX_MODULE_SIZE		= 1024 * 64
 
-DEBUG 			= 0
+DEBUG 			= True
 OPTIONS = "h"
 LONG_OPTIONS = [ "help" ]
 
@@ -45,37 +45,38 @@ LONG_OPTIONS = [ "help" ]
 class ModuleBuilder:
 
 	def __init__(self, OUTPUT_DIR, MODULE_ID):
+		print ("ModuleBuilder Init")
 		self.module_id = MODULE_ID
-		filename = "%s/%04d.mod" % (OUTPUT_DIR, self.module_id)
+		filename = f"{OUTPUT_DIR}/{MODULE_ID:04}.mod"
 		self.name = filename # needed for debug
 		if DEBUG:
-			print "NEW MODULE: %s" % filename
+			print(f"NEW MODULE: {filename}")
 		self.__file = open(filename, "wb")
 		self.size = 0
 
 	def hasRoom(self, requestedSize):
 		if self.size == 0:
 			# Anything goes...
-			return 1
+			return True
 		elif self.size + requestedSize <= MAX_MODULE_SIZE:
 			# Module isn't empty, but still have space
-			return 1
+			return True
 		else:
 			# Start new module
-			return 0
+			return False
 
-	def write(self, bytes):
-		msgSize = len(bytes)
+	def write(self, bytes_):
+		msgSize = len(bytes_)
 		if DEBUG:
-			print "ADD (mod %d, size %d+%d=%d)" % ( self.module_id, self.size, msgSize, self.size+msgSize)
-		self.__file.write(bytes)
-		self.size = self.size + msgSize
+			print(f"ADD (mod {self.module_id}, size {self.size}+{msgSize}={self.size + msgSize})")
+		self.__file.write(bytes_)
+		self.size += msgSize
 
 ######################################################################
 class ObjectCarouselBuilder: # Build an object carousel with 1 DII, this limits the number of modules to something a bit more than 100
 
 	def __init__(self, OUTPUT_DIR, CAROUSEL_ID, DOWNLOAD_ID, ASSOC_TAG, MODULE_VERSION, BLOCK_SIZE, UPDATE_FLAG, COMPRESS_MODE):
-		
+		print ("ObjectCarouselBuilder init")
 		self.MODULE_ID = 2
 		
 		# The builder generate modules files and specification files
@@ -93,12 +94,12 @@ class ObjectCarouselBuilder: # Build an object carousel with 1 DII, this limits 
 			updateFlag     = UPDATE_FLAG,
 			)
 		
-		self.__SPECdii = open("%s/DII.spec" % OUTPUT_DIR, "w")
+		self.__SPECdii = open(f"{OUTPUT_DIR}/DII.spec", "w")
 		
 		self.__spec = SuperGroupSpec(
 			transactionId = self.DSI_TransactionId,
 			version       = MODULE_VERSION,
-			srg_ior       = "%s/SRG_IOR" % OUTPUT_DIR,
+			srg_ior       = f"{OUTPUT_DIR}/SRG_IOR",
 		)
 
 		self.__spec.addGroup(
@@ -150,6 +151,9 @@ class ObjectCarouselBuilder: # Build an object carousel with 1 DII, this limits 
 		self.__addNode(node, "sgw")
 		
 	def addFile(self, node):
+		print ("Add file")
+		print (self)
+		print (node)
 		self.__addNode(node, "fil")
 		
 	def addSoloFile(self, node):
@@ -158,33 +162,39 @@ class ObjectCarouselBuilder: # Build an object carousel with 1 DII, this limits 
 	def addStreamEvent(self, node):
 		self.__addNode(node, "ste")
 	
-	def __addNode(self, node, type):
+	def __addNode(self, node, type_):
+		print ("Add Node")
+		print (self)
+		print (node)
+		print (type_)
+
 		msg = node.message()
+		print ("Add Node msg:",msg)
 		msgBytes = msg.pack()
 		msgSize = len(msgBytes)
 		
-		if (type == 'solo'):
-			self.__ModByType[type] = self.__nextModule(self.MODULE_ID)
-			self.__ModByType[type].write(msgBytes)
-			filename = "%s/%04d.mod.solo" % (OUTPUT_DIR, self.__ModByType[type].module_id)
+		if (type_ == 'solo'):
+			self.__ModByType[type_] = self.__nextModule(self.MODULE_ID)
+			self.__ModByType[type_].write(msgBytes)
+			filename = f"{self.OUTPUT_DIR}/{self.__ModByType[type_].module_id:04}.mod.solo"
 			out = open(filename, "wb")
 			out.close()
-			modid = str(self.__ModByType[type].module_id)
-		elif (type == 'sgw'):
-			self.__ModByType[type] = self.__nextModule(1)
-			self.__ModByType[type].write(msgBytes)
-			modid = str(self.__ModByType[type].module_id)
+			modid = str(self.__ModByType[type_].module_id)
+		elif (type_ == 'sgw'):
+			self.__ModByType[type_] = self.__nextModule(1)
+			self.__ModByType[type_].write(msgBytes)
+			modid = str(self.__ModByType[type_].module_id)
 		else:
-			if not self.__TypeInUse[type]:
-				self.__ModByType[type] = self.__nextModule(self.MODULE_ID)
-				self.__TypeInUse[type] = 1
+			if not self.__TypeInUse[type_]:
+				self.__ModByType[type_] = self.__nextModule(self.MODULE_ID)
+				self.__TypeInUse[type_] = 1
 		
-			if self.__ModByType[type].hasRoom(msgSize):
-				self.__ModByType[type].write(msgBytes)
+			if self.__ModByType[type_].hasRoom(msgSize):
+				self.__ModByType[type_].write(msgBytes)
 			else:
-				self.__ModByType[type] = self.__nextModule(self.MODULE_ID)
-				self.__ModByType[type].write(msgBytes)
-			modid = str(self.__ModByType[type].module_id)
+				self.__ModByType[type_] = self.__nextModule(self.MODULE_ID)
+				self.__ModByType[type_].write(msgBytes)
+			modid = str(self.__ModByType[type_].module_id)
 			
 		node.bind(
 			carouselId = self.CAROUSEL_ID,
@@ -224,8 +234,12 @@ class ObjectCarouselBuilder: # Build an object carousel with 1 DII, this limits 
 class FSNode(DVBobject): # superclass for FSDirectory, FSSteam and FSFile.
 
 	def __init__(self, KEY_SERIAL_NUMBER):
+		print ("FSNode init")
 		self.KEY = KEY_SERIAL_NUMBER
+		print (self)
 	def IOR(self, carouselId, moduleId, key, assoc_tag, DII_TransactionId):
+		print ("FSNode iop")
+		print (self)
 		iop = BIOP.IOP.IOR(
 			PATH = self.PATH, # for debugging
 			type_id = self.MessageClass.objectKind,
@@ -240,7 +254,7 @@ class FSNode(DVBobject): # superclass for FSDirectory, FSSteam and FSFile.
 
 	def _checkBinding(self):
 		try:
-			raise "Already Bound", self._binding
+			raise Exception("Already Bound" + str(self._binding))
 		except AttributeError:
 			pass
 			
@@ -252,14 +266,18 @@ class FSFile(FSNode): # A File in a File System destined for an Object Carousel.
 	BindingClass = BIOP.ObjectFileBinding
 	
 	def __init__(self, path, KEY_SERIAL_NUMBER):
-		FSNode.__init__(self, KEY_SERIAL_NUMBER)
-		assert(len(path) > 0)
+		print ("FSFile init")
+		super().__init__(KEY_SERIAL_NUMBER)
+		assert path, "Path cannot be empty"
+		print (path)
 		self.PATH = path
 		self.contentSize = os.stat(path)[ST_SIZE]
+		print (os.stat(path)[ST_SIZE])
 	
 	def bind(self, carouselId, moduleId, assoc_tag, DII_TransactionId):
 		self._checkBinding()
 		filename = os.path.basename(self.PATH)
+		print (filename)
 		self._binding = self.BindingClass(
 			nameId = filename + "\x00",
 			IOR = self.IOR(carouselId, moduleId, self.KEY, assoc_tag, DII_TransactionId),
@@ -270,18 +288,26 @@ class FSFile(FSNode): # A File in a File System destined for an Object Carousel.
 		return self._binding
 	
 	def message(self):
+		print ("FSFile message")
+		print ("FSFile message self:",self)
 		msg = self.MessageClass(
 			PATH = self.PATH,
 			objectKey   = self.KEY,
 			contentSize = self.contentSize,
 		)
+		print ("MSG Return:", msg)
 		return msg
 	
 	def shipMessage(self, theObjectCarouselBuilder, isSolo):
+		print ("Ship message")
+		print (self)
+		print (isSolo)
 		if (isSolo == 1):
 			theObjectCarouselBuilder.addSoloFile(self)
+			print ("SOLO")
 		else:
 			theObjectCarouselBuilder.addFile(self)
+			print ("OTHER")
 		
 ######################################################################
 class FSStreamEvent(FSNode): # A Directory in a File System destined to genereate a StreamEvent Object for Object Carousel.
@@ -290,6 +316,7 @@ class FSStreamEvent(FSNode): # A Directory in a File System destined to genereat
 	BindingClass = BIOP.ObjectStreamEventBinding
 	
 	def __init__(self, path, KEY_SERIAL_NUMBER):
+		print ("FSStreamEvent init")
 		FSNode.__init__(self, KEY_SERIAL_NUMBER)
 		assert(len(path) > 0)
 		self.PATH = path
@@ -322,6 +349,7 @@ class FSDir(FSNode, ObjectCarouselBuilder):# A Directory in a File System destin
 	BindingClass = BIOP.ContextBinding
 	
 	def __init__(self, path, KEY_SERIAL_NUMBER):
+		print ("FSDir init")
 		FSNode.__init__(self, KEY_SERIAL_NUMBER)
 		assert(len(path) > 0)
 		self.PATH  = path
@@ -362,12 +390,13 @@ class FSDir(FSNode, ObjectCarouselBuilder):# A Directory in a File System destin
 		try:
 			ls = os.listdir(self.PATH)
 		except:
-			print self.PATH
+			print (self.PATH)
 			raise
 	
 		ls.sort()
 	
 		for filename in ls:
+			print (filename)
 			path = os.path.join(self.PATH, filename)
 #			if os.path.splitext(filename)[1] in REJECT_EXT:
 #				continue
@@ -379,7 +408,7 @@ class FSDir(FSNode, ObjectCarouselBuilder):# A Directory in a File System destin
 				else:
 					obj.shipMessage(theObjectCarouselBuilder, 0)
 				if DEBUG:
-					print obj.message()
+					print (obj.message())
 					print
 			elif os.path.isdir(path):
 				if os.path.splitext(filename)[1] in EVENT_EXT:
@@ -387,7 +416,7 @@ class FSDir(FSNode, ObjectCarouselBuilder):# A Directory in a File System destin
 					obj = FSStreamEvent(path, self.visitKEY)
 					obj.shipMessage(theObjectCarouselBuilder)
 					if DEBUG:
-						print obj.message()
+						print (obj.message())
 						print
 				else:
 					self.visitKEY = self.visitKEY + 1
@@ -395,7 +424,7 @@ class FSDir(FSNode, ObjectCarouselBuilder):# A Directory in a File System destin
 					obj.visit(theObjectCarouselBuilder)
 					self.visitKEY = obj.visitKEY
 					if DEBUG:
-						print obj.message()
+						print (obj.message())
 						print
 			else:
 				continue
@@ -405,7 +434,7 @@ class FSDir(FSNode, ObjectCarouselBuilder):# A Directory in a File System destin
 		# THIS directory (i.e. self) is complete, so...
 		self.shipMessage(theObjectCarouselBuilder)
 		if DEBUG:
-			print self.message()
+			print (self.message())
 			print
 		
 	
@@ -439,9 +468,12 @@ if __name__ == '__main__':
 	INPUT_DIR, OUTPUT_DIR, CAROUSEL_ID, DOWNLOAD_ID, ASSOC_TAG, MODULE_VERSION, BLOCK_SIZE, UPDATE_FLAG, COMPRESS_MODE = args
 	
 	root = FSRoot(INPUT_DIR, 0)
+	print (root)
 	theObjectCarouselBuilder = ObjectCarouselBuilder(OUTPUT_DIR, int(CAROUSEL_ID), int(DOWNLOAD_ID), int(ASSOC_TAG, 16), int(MODULE_VERSION, 16), int(BLOCK_SIZE), int(UPDATE_FLAG), int(COMPRESS_MODE))
+	print (theObjectCarouselBuilder)
 	root.visit(theObjectCarouselBuilder)
 	
+	print (OUTPUT_DIR)
 	out = open("%s/SRG_IOR" % OUTPUT_DIR, "wb")
 	out.write(root.binding().IOR.pack())
 	out.close()
@@ -449,5 +481,5 @@ if __name__ == '__main__':
 	theObjectCarouselBuilder.genSpec()
 	
 	if DEBUG:
-		print root.binding().IOR
+		print (root.binding().IOR)
 		pprint.pprint(theObjectCarouselBuilder.TOC)

@@ -162,7 +162,7 @@ class compressed_descriptor(Descriptor):
         compression_method = 0x08
 
         sizeFile = "%s.size" % self.name
-        items = string.split(open(sizeFile).readline())
+        items = open(sizeFile).readline().split()
         original_size = eval(items[0])
         # print("module size %d" % original_size)
         fmt = "!BL"

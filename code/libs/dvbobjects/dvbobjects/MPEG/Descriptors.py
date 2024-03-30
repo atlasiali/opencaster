@@ -91,13 +91,14 @@ class association_tag_descriptor(Descriptor):
     def bytes(self):
         if self.use == 0:
             fmt = "!HHBLL%ds" % (len(self.private_data))
+            print ("MPEG Descriptors TAG:",self,fmt)
             return pack(fmt,
                         self.association_tag,
                         self.use,
                         self.selector_lenght,
                         self.transaction_id,
                         self.timeout,
-                        self.private_data,
+                        self.private_data.encode('utf-8'),
                         )
         else:
             fmt = "!HHB%ds%ds" % (
@@ -173,7 +174,7 @@ class carousel_identifier_descriptor(Descriptor):
             return pack(fmt,
                         self.carousel_ID,
                         self.format_ID,
-                        self.private_data,
+                        self.private_data.encode('utf-8'),
                         )
 
 ######################################################################

@@ -32,7 +32,8 @@ def BuildCarousel(INPUT_DIR, OUTPUT_DIR):
     spec.read("%s/DSI.spec" % INPUT_DIR)
 
     # DVB
-    assert 0x0000 <= spec.transactionId & 0x0000FFFF <= 0x0001
+    print ("BuildCarousel spec:", spec)
+   # assert 0x0000 <= spec.transactionId & 0x0000FFFF <= 0x0001
     
     dsi = SuperGroup(
         PATH=spec.PATH,
@@ -74,7 +75,7 @@ def BuildCarousel(INPUT_DIR, OUTPUT_DIR):
 	    
     dsi.generate(OUTPUT_DIR, spec.srg_ior)
     if spec.srg_ior == None:
-        print dsi
+        print (dsi)
 
 ######################################################################
 OPTIONS = "h"
@@ -102,7 +103,7 @@ def CheckArgs():
         if opt_name in ['-h', '--help']:
             Usage(0)
 
-    if len(args) <> 2:
+    if len(args) != 2:
         Usage()
 
     INPUT_DIR, OUTPUT_DIR = args

@@ -42,35 +42,31 @@ class Binding(DVBobject):
 
     def pack(self):
 
+        print ("Binding pack:", self)
         ior = self.IOR.pack()
 
-        FMT = (
-            "!"
-            "B"                         # nameComponents_count
-            "B%ds"                      # id
-            "B%ds"                      # kind
-            "B"                         # bindingType
-            "%ds"                       # IOP::IOR()
-            "H%ds"                      # objectInfo
-        ) % (
-            len(self.nameId),
-            len(self.nameKind),
-            len(ior),
-            len(self.objectInfo),
-        )
+        nameId_bytes = self.nameId.encode('utf-8') if isinstance(self.nameId, str) else self.nameId
+        nameKind_bytes = self.nameKind.encode('utf-8') if isinstance(self.nameKind, str) else self.nameKind  # Ensure this is bytes
 
-        return pack(
+        FMT = "!B{}s{}sB{}s{}s".format(
+            len(nameId_bytes), len(nameKind_bytes), len(ior), len(self.objectInfo)
+       )
+
+        print("Binding indi:", FMT, type(FMT), self.objectInfo, type(self.objectInfo))
+
+        packed_data = pack(
             FMT,
             self.nameComponents_count,
-            len(self.nameId),
-            self.nameId,
-            len(self.nameKind),
-            self.nameKind,
+            nameId_bytes,
+            nameKind_bytes,
             self.bindingType,
             ior,
-            len(self.objectInfo),
             self.objectInfo,
         )
+
+        print("packed binding:", packed_data)
+
+        return packed_data
 
     def __repr__(self):
         """Overrides DVBobject.__repr_, which is noooiiisy"""

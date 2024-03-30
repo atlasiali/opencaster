@@ -75,11 +75,13 @@ class application_name_descriptor(Descriptor):
     descriptor_tag = 0x01
 
     def bytes(self):
-        fmt = "!3sB%ds" % len(self.application_name)
+        fmt = "!3sB%ds" % len(self.application_name.encode('utf-8'))
+        print ("HBBTV descriptor:", self,fmt)
+        print ("ISO LANG:", self.ISO_639_language_code)
         return pack(fmt,
-                    self.ISO_639_language_code,
-                    len(self.application_name),
-                    self.application_name,
+                    self.ISO_639_language_code.encode('utf-8'),
+                    len(self.application_name.encode('utf-8')),
+                    self.application_name.encode('utf-8'),
                     )
 ######################################################################
 
@@ -126,8 +128,9 @@ class simple_application_location_descriptor(Descriptor):
 
     def bytes(self):
         fmt = "!%ds" % len(self.initial_path_bytes)
+        print ("HBBTV Simple app:", self, fmt)
         return pack(fmt,
-                    self.initial_path_bytes
+                    self.initial_path_bytes.encode('utf-8')
                     )
 ######################################################################
 
